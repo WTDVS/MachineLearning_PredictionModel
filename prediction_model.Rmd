@@ -1,0 +1,135 @@
+---
+title: "Weight Lifting Activity Mode Prediction Model"
+author: "E.C.S"
+date: "Sunday, April 26, 2015"
+output: html_document
+---
+
+
+-- Load caret 
+```{r}
+
+library(caret)
+
+```
+
+
+
+
+
+-- Read in traing and test data 
+
+```{r}
+
+setwd("~/Data Science Specialization/machine_learning/week3_3")
+
+
+trainData <- read.csv('pml-training.csv',na.strings = c("NA",""))
+
+
+testData <- read.csv('pml-testing.csv',na.strings = c("NA",""))
+
+```
+
+
+-- Split training set into training and test partitions
+```{r}
+
+set.seed(1234)
+
+trainPart <- createDataPartition(trainData$classe, list=FALSE, p=.80)
+trainSet <- trainData[trainPart,]
+testSet <- trainData[-trainPart,]
+
+dim(trainSet)
+dim(testSet) 
+```
+
+-- Remove columns with near zero variance from prediction attributes...
+```{r}
+nzv <- nearZeroVar(trainSet) 
+trainSet <- trainSet[-nzv]
+testSet <- testSet[-nzv]
+testData <- testData[-nzv]
+
+dim(trainSet)
+dim(testSet) 
+
+```
+
+-- Retain numeric attributes only for use in prediction model... 
+
+```{r}
+
+numeric_attr = which(lapply(trainSet,class) %in% c('numeric') ) 
+
+```
+
+-- use preProcess.knnImpute to impute missing data values... lli
+
+```{r}
+
+library(caret)
+library(randomForest)
+library(RANN)
+
+beta <- preProcess(trainSet[,numeric_attr], method=c('knnImpute'))
+
+
+
+trainPredict <- cbind(trainSet$classe, predict(beta, trainSet[,numeric_attr]))
+testValPredict <- cbind(testSet$classe, predict(beta, testSet[,numeric_attr]))
+testPredict <- predict(beta, testData[,numeric_attr])
+
+names(trainPredict)[1] <- 'classe'
+names(testValPredict)[1] <- 'classe'
+
+```
+
+```{r}
+
+randfor <- randomForest(classe ~ ., trainPredict, ntree=1000, mtry=24)
+
+```
+
+
+
+--Use test data to evaluate quality of the prediction model..
+```{r}
+
+answers <- predict(randfor, testPredict)
+answers
+
+```
+
+--Post answers one answer to each file in subdirectory given ...
+```{r}
+
+setwd("./Answers")
+
+unlink("problem_id_*")
+
+pml_write_files = function(x){
+     n = length(x)
+     for(i in 1:n){
+         filename = paste0("problem_id_",i,".txt")
+         write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+     }
+ }
+
+
+pml_write_files(answers)
+
+```
+
+
+--Results: 
+
+    The model seems to have good prediction ability for the test data set provided. 
+
+
+--Reference publication basis for predictive Model:
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. 
+Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013. 
+
